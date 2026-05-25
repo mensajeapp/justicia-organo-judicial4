@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sistema Informático Gestor de Causas del Órgano Judicial (SIGC OJ)</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --accent:#16a34a;--accent-lt:#22c55e;
+      --bg-dark:#1a1a1a;--bg-mid:#2a2a2a;--bg-panel:#3a3a3a;
+      --border:#3f3f3f;--text:#d4d4d4;--muted:#888;
+    }
+    html,body{height:100%;background:var(--bg-dark);font-family:'DM Sans',sans-serif;color:var(--text);overflow:hidden}
+
+    header{
+      position:fixed;top:0;left:0;right:0;z-index:100;height:52px;
+      background:#111;border-bottom:1px solid #2e2e2e;
+      display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+    }
+    .brand{display:flex;align-items:center;gap:9px}
+    .brand-icon{color:var(--accent-lt)}
+    .brand-name{font-family:'EB Garamond',serif;font-size:.98rem;color:#d4d4d4}
+    .brand-sub{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+    .hdr-actions{display:flex;gap:8px}
+    .btn{
+      background:#2a2a2a;border:1px solid #444;color:#bbb;
+      font-size:.78rem;padding:6px 13px;border-radius:6px;cursor:pointer;
+      display:flex;align-items:center;gap:6px;font-family:'DM Sans',sans-serif;transition:background .15s;
+    }
+    .btn:hover{background:#3a3a3a}
+
+    .toolbar{
+      position:fixed;top:52px;left:0;right:0;z-index:90;height:42px;
+      background:#0d0d0d;border-bottom:1px solid #222;
+      display:flex;align-items:center;padding:0 16px;gap:12px;
+    }
+    .toolbar-filename{font-size:.8rem;font-weight:500;color:#ccc}
+    .toolbar-sep{flex:1}
+    .page-nav{display:flex;align-items:center;gap:4px}
+    .page-btn{
+      background:#2a2a2a;border:1px solid #3f3f3f;color:#bbb;
+      width:26px;height:26px;border-radius:4px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;font-size:.8rem;transition:background .12s;
+    }
+    .page-btn:hover{background:#3a3a3a}
+    .page-info{font-size:.78rem;color:var(--muted);min-width:60px;text-align:center}
+    .zoom-group{display:flex;align-items:center;gap:4px;margin-left:8px}
+    .zoom-label{font-size:.75rem;color:var(--muted);min-width:38px;text-align:center}
+
+    main{padding-top:94px;height:100vh;display:flex;flex-direction:column}
+    .viewer-area{
+      flex:1;overflow-y:auto;overflow-x:auto;background:#222;
+      display:flex;flex-direction:column;align-items:center;padding:24px 16px;gap:16px;
+    }
+    .pdf-page-wrapper{box-shadow:0 4px 24px rgba(0,0,0,.6);border-radius:2px;line-height:0}
+    .pdf-page-wrapper canvas{display:block;max-width:100%}
+
+    .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--muted);height:100%}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{width:36px;height:36px;border:3px solid #333;border-top-color:var(--accent-lt);border-radius:50%;animation:spin .8s linear infinite}
+
+    .error-msg{color:#f87171;font-size:.9rem;text-align:center;line-height:1.7}
+
+    /* badge */
+    .validity-badge{position:fixed;bottom:32px;right:28px;z-index:200;cursor:default}
+    @keyframes pulse-ring{
+      0%{transform:scale(.85);opacity:.65}
+      70%{transform:scale(1.4);opacity:0}
+      100%{transform:scale(.85);opacity:0}
+    }
+    .badge-pulse{
+      position:absolute;inset:-7px;border:3px solid var(--accent-lt);
+      border-radius:50px;animation:pulse-ring 2.4s ease-out infinite;pointer-events:none;
+    }
+    .badge-pill{
+      display:flex;align-items:center;gap:10px;
+      background:var(--accent);color:#fff;border-radius:40px;padding:10px 20px 10px 11px;
+      box-shadow:0 4px 20px rgba(22,163,74,.45),0 2px 8px rgba(0,0,0,.5);
+      font-weight:600;font-size:.88rem;letter-spacing:.05em;text-transform:uppercase;
+      font-family:'DM Sans',sans-serif;transition:transform .18s,box-shadow .18s;user-select:none;
+    }
+    .validity-badge:hover .badge-pill{
+      transform:translateY(-2px);
+      box-shadow:0 8px 28px rgba(22,163,74,.55),0 4px 12px rgba(0,0,0,.5);
+    }
+    .badge-icon{width:30px;height:30px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .tooltip-card{
+      position:absolute;bottom:calc(100% + 14px);right:0;
+      width:316px;background:#fff;border-radius:12px;
+      box-shadow:0 20px 60px rgba(0,0,0,.5);
+      opacity:0;transform:translateY(8px) scale(.97);
+      pointer-events:none;transition:opacity .22s ease,transform .22s ease;overflow:hidden;
+    }
+    .validity-badge:hover .tooltip-card{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+    .tooltip-card::after{
+      content:'';position:absolute;bottom:-7px;right:44px;
+      width:14px;height:14px;background:#fff;
+      transform:rotate(45deg);box-shadow:2px 2px 5px rgba(0,0,0,.12);
+    }
+    .tt-header{background:#f0fdf4;border-bottom:1px solid #bbf7d0;padding:13px 16px 11px;display:flex;align-items:center;gap:10px}
+    .tt-header-title{font-family:'EB Garamond',serif;font-size:1rem;font-weight:600;color:#14532d}
+    .tt-header-sub{font-size:.7rem;color:#166534;font-family:'DM Sans',sans-serif}
+    .tt-body{padding:13px 16px 15px}
+    .signer-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+    .signer-name{font-weight:600;font-size:.86rem;color:#111827}
+    .signer-email{font-size:.73rem;color:#2563eb;margin-top:2px}
+    .sign-date{text-align:right;flex-shrink:0;margin-left:12px}
+    .sign-date .d{font-size:.79rem;font-weight:600;color:#374151}
+    .sign-date .t{font-size:.7rem;color:#6b7280}
+    .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    .chip{
+      display:flex;align-items:center;gap:4px;font-size:.7rem;font-weight:500;color:#15803d;
+      background:#f0fdf4;border:1px solid #bbf7d0;border-radius:20px;padding:3px 10px 3px 6px;
+    }
+    .viewer-area::-webkit-scrollbar{width:8px;height:8px}
+    .viewer-area::-webkit-scrollbar-track{background:#1a1a1a}
+    .viewer-area::-webkit-scrollbar-thumb{background:#444;border-radius:4px}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg class="brand-icon" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+      <circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/>
+    </svg>
+    <div>
+      <div class="brand-name">Tribunal Supremo de Justicia</div>
+      <div class="brand-sub">Verificador de documentos</div>
+    </div>
+  </div>
+  <div class="hdr-actions">
+    <button class="btn" id="btn-download" onclick="downloadPDF()" style="display:none">
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4 4-4"/>
+      </svg>
+      Descargar
+    </button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#666" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9l-6-6H7a2 2 0 00-2 2v14a2 2 0 002 2Z"/>
+  </svg>
+  <span class="toolbar-filename">01.pdf</span>
+  <div class="toolbar-sep"></div>
+  <div class="page-nav">
+    <button class="page-btn" onclick="changePage(-1)">&#8249;</button>
+    <span class="page-info" id="page-info">— / —</span>
+    <button class="page-btn" onclick="changePage(1)">&#8250;</button>
+  </div>
+  <div class="zoom-group">
+    <button class="page-btn" onclick="changeZoom(-0.15)">−</button>
+    <span class="zoom-label" id="zoom-label">100%</span>
+    <button class="page-btn" onclick="changeZoom(0.15)">+</button>
+  </div>
+</div>
+
+<main>
+  <div class="viewer-area" id="viewer-area">
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <span>Cargando documento…</span>
+    </div>
+    <div id="pdf-pages-container" style="display:none;flex-direction:column;align-items:center;gap:16px;width:100%"></div>
+  </div>
+</main>
+
+<div class="validity-badge" tabindex="0">
+  <div class="badge-pulse"></div>
+  <div class="badge-pill">
+    <div class="badge-icon">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 6L9 17l-5-5"/>
+      </svg>
+    </div>
+    Validez Digital
+  </div>
+  <div class="tooltip-card" role="tooltip">
+    <div class="tt-header">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+        <circle cx="13" cy="13" r="13" fill="#dcfce7"/>
+        <path d="M7 13.5l4 4 8-8" stroke="#16a34a" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <div class="tt-header-title">Firma Digital</div>
+        <div class="tt-header-sub">Documento verificado con validez legal</div>
+      </div>
+    </div>
+    <div class="tt-body">
+      <div class="signer-row">
+        <div>
+          <div class="signer-name">ROMER SAUCEDO GOMEZ</div>
+          <div class="signer-email">romersaucedotsj2025@gmail.com</div>
+        </div>
+        <div class="sign-date">
+          <div class="d">17/03/2026</div>
+          <div class="t">14:18:40</div>
+        </div>
+      </div>
+      <div class="chips">
+        <span class="chip">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          Auténtico
+        </span>
+        <span class="chip">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          En el periodo de vigencia
+        </span>
+        <span class="chip">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          Con certificado no revocado
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const PDF_FILE = '01.pdf';
+
+  let pdfDoc=null, pdfBytes=null, currentPage=1, totalPages=0, scale=1.4;
+
+  const pagesContainer = document.getElementById('pdf-pages-container');
+  const loading        = document.getElementById('loading');
+  const pageInfo       = document.getElementById('page-info');
+  const zoomLabel      = document.getElementById('zoom-label');
+
+  async function init(){
+    try {
+      const resp = await fetch(PDF_FILE);
+      if(!resp.ok) throw new Error('No se pudo cargar ' + PDF_FILE);
+      const buffer = await resp.arrayBuffer();
+      pdfBytes = new Uint8Array(buffer);
+      pdfDoc   = await pdfjsLib.getDocument({data: pdfBytes}).promise;
+      totalPages = pdfDoc.numPages;
+      loading.style.display = 'none';
+      pagesContainer.style.display = 'flex';
+      document.getElementById('btn-download').style.display = 'flex';
+      for(let p=1;p<=totalPages;p++) await renderPage(p);
+      updateInfo();
+    } catch(err) {
+      loading.innerHTML = '<p class="error-msg">&#9888; ' + err.message + '<br><small>Asegurate de servir el HTML desde un servidor (Live Server o GitHub Pages)<br>y que igfhdf.pdf esté en la misma carpeta.</small></p>';
+    }
+  }
+
+  async function renderPage(pageNum){
+    const page     = await pdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({scale});
+    const wrapper  = document.createElement('div');
+    wrapper.className = 'pdf-page-wrapper';
+    wrapper.dataset.page = pageNum;
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+    wrapper.appendChild(canvas);
+    pagesContainer.appendChild(wrapper);
+  }
+
+  async function reRender(){
+    pagesContainer.innerHTML='';
+    for(let p=1;p<=totalPages;p++) await renderPage(p);
+    updateInfo();
+  }
+
+  function changePage(dir){
+    const next=currentPage+dir;
+    if(next<1||next>totalPages) return;
+    currentPage=next; updateInfo();
+    const w=pagesContainer.querySelector('[data-page="'+currentPage+'"]');
+    if(w) w.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  function changeZoom(delta){
+    scale=Math.max(0.5,Math.min(3.0,scale+delta));
+    reRender();
+  }
+
+  function updateInfo(){
+    pageInfo.textContent=currentPage+' / '+totalPages;
+    zoomLabel.textContent=Math.round(scale/1.4*100)+'%';
+  }
+
+  function downloadPDF(){
+    const blob=new Blob([pdfBytes],{type:'application/pdf'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=PDF_FILE; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+  document.getElementById('viewer-area').addEventListener('scroll',()=>{
+    if(!pdfDoc) return;
+    const wrappers=pagesContainer.querySelectorAll('.pdf-page-wrapper');
+    let closest=1,minDist=Infinity;
+    wrappers.forEach(w=>{
+      const dist=Math.abs(w.getBoundingClientRect().top-100);
+      if(dist<minDist){minDist=dist;closest=+w.dataset.page;}
+    });
+    if(closest!==currentPage){currentPage=closest;updateInfo();}
+  });
+
+  init();
+</script>
+</body>
+</html>
